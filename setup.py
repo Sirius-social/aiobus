@@ -11,7 +11,7 @@ with open(os.path.join(HERE, "README.md")) as fid:
 setup(
     name="aiobus",
     version="0.9",
-    description="An event-bus application layer, support redis",
+    description="An event-bus application layer, supports redis",
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/Sirius-social/aiobus",
