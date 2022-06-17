@@ -67,7 +67,8 @@ class RedisBus(AbstractBus):
         self.__max_pool_size = max_pool_size
 
     async def publish(self, topic: str, message: Dict) -> Optional[int]:
-        async with self.connection(topic) as conn:
+        url = self.__get_redis_url(topic)
+        async with self.connection(url) as conn:
             redis: aioredis.Redis = conn
             payload = json.dumps(message).encode()
             counter = await redis.publish(topic, payload)
@@ -106,8 +107,8 @@ class RedisBus(AbstractBus):
         return listener
 
     @asynccontextmanager
-    async def connection(self, topic: str):
-        redis = aioredis.Redis.from_url(url=self.__get_redis_url(topic), max_connections=1)
+    async def connection(self, url: str):
+        redis = aioredis.Redis.from_url(url=url, max_connections=1)
         try:
             yield redis
         finally:
@@ -115,14 +116,13 @@ class RedisBus(AbstractBus):
             await redis.close()
 
     @asynccontextmanager
-    async def connection_pool(self, topic: str):
+    async def connection_pool(self, url: str):
         cur_loop_id = id(asyncio.get_event_loop())
         try:
             pools = self.__thread_local.pools
         except AttributeError:
             pools = {}
             self.__thread_local.pools = pools
-        url = self.__get_redis_url(topic)
         key = f'{cur_loop_id}:{url}'
         pool = pools.get(key, aioredis.ConnectionPool.from_url(url, max_connections=self.__max_pool_size))
         self.__thread_local.pools[url] = pool
@@ -151,7 +151,8 @@ class RedisBus(AbstractBus):
                 # release conn
                 del subscribers[topic]
                 await pub.close()
-        async with self.connection(topic) as conn:
+        url = self.__get_redis_url(topic)
+        async with self.connection(url) as conn:
             redis: aioredis.Redis = conn
             pub = redis.pubsub()
             await pub.subscribe(topic)

@@ -8,27 +8,29 @@ import aioredis
 
 from aiobus.redis import RedisBus
 
+from .helpers import TcpProxy
+
 
 @pytest.mark.asyncio
 async def test_connection(redis_servers: List[str]):
     bus = RedisBus(redis_servers)
     # check single connection
-    topic = 'topic-' + uuid.uuid4().hex
-    async with bus.connection(topic) as redis:
-        assert isinstance(redis, aioredis.Redis)
-        pong = await redis.ping()
-        assert pong is True
+    for addr in redis_servers:
+        async with bus.connection('redis://' + addr) as redis:
+            assert isinstance(redis, aioredis.Redis)
+            pong = await redis.ping()
+            assert pong is True
 
 
 @pytest.mark.asyncio
 async def test_connection_pool(redis_servers: List[str]):
     bus = RedisBus(redis_servers)
     # Check connection pool
-    topic = 'topic-' + uuid.uuid4().hex
-    async with bus.connection_pool(topic) as redis:
-        assert isinstance(redis, aioredis.Redis)
-        pong = await redis.ping()
-        assert pong is True
+    for addr in redis_servers:
+        async with bus.connection_pool('redis://' + addr) as redis:
+            assert isinstance(redis, aioredis.Redis)
+            pong = await redis.ping()
+            assert pong is True
 
 
 @pytest.mark.asyncio
