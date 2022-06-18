@@ -5,6 +5,8 @@ from aiobus.redis import RedisBus
 
 
 bus = RedisBus(
+    # Don't forget to setup redis instances on localhost with command:
+    # docker-compose up -d
     servers=['127.0.0.1:6379', '127.0.0.1:6380']
 )
 
