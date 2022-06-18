@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 import datetime
 from typing import List
@@ -7,6 +8,7 @@ import pytest
 import aioredis
 
 from aiobus.redis import RedisBus
+from aiobus.errors import PublisherError
 
 from .helpers import TcpProxy
 
@@ -206,3 +208,56 @@ async def test_unsubscribe_multiple(redis_servers: List[str]):
         assert msg is None
     finally:
         fut.cancel()
+
+
+@pytest.mark.asyncio
+async def test_auto_reconnect(redis_servers: List[str]):
+    topic = 'topic-' + uuid.uuid4().hex
+    redis1_proxy = TcpProxy(local_port=12000)
+    redis2_proxy = TcpProxy(local_port=12001)
+    redis1_addr = redis_servers[0]
+    redis1_host, redis1_port = redis1_addr.split(':')[0], int(redis1_addr.split(':')[1])
+    redis2_addr = redis_servers[0]
+    redis2_host, redis2_port = redis2_addr.split(':')[0], int(redis2_addr.split(':')[1])
+    # Run tests via tcp proxy to emulate connection downs
+    await redis1_proxy.start(remote_host=redis1_host, remote_port=redis1_port)
+    await redis2_proxy.start(remote_host=redis2_host, remote_port=redis2_port)
+
+    redis_servers_under_proxy = [f'{host}:{port}' for host, port in ([redis1_host, 12000], [redis2_host, 12001])]
+    bus = RedisBus(redis_servers_under_proxy)
+    sends_with_errors = 0
+    sends_with_success = 0
+    rcv_success = 0
+
+    async def __async_publisher(delay: float = 0.1):
+        nonlocal sends_with_errors
+        nonlocal sends_with_success
+        while True:
+            try:
+                await bus.publish(topic, {'stamp': str(datetime.datetime.now()), 'topic': topic})
+                sends_with_success += 1
+                await asyncio.sleep(delay)
+            except PublisherError as e:
+                sends_with_errors += 1
+
+    async def __down_conn(delay: float = 0.1):
+        await redis1_proxy.stop()
+        await redis2_proxy.stop()
+        await asyncio.sleep(delay)
+        await redis1_proxy.start(remote_host=redis1_host, remote_port=redis1_port)
+        await redis2_proxy.start(remote_host=redis2_host, remote_port=redis2_port)
+
+    fut_publisher = asyncio.ensure_future(__async_publisher())
+
+    await bus.subscribe(topic)
+    async for msg in await bus.listen():
+        rcv_success += 1
+        fut_down = asyncio.ensure_future(__down_conn(5.0))
+        if rcv_success >= 3:
+            break
+
+    fut_publisher.cancel()
+
+    assert sends_with_errors > 0
+    assert sends_with_success > 0
+    assert rcv_success == sends_with_success

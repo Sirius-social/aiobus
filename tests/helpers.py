@@ -37,8 +37,12 @@ class TcpUpstream:
         if self.local_writer:
             self.local_writer.close()
             self.local_writer = None
-        self.local_reader = None
-        self.remote_reader = None
+        if self.local_reader:
+            self.local_reader.feed_eof()
+            self.local_reader = None
+        if self.remote_reader:
+            self.remote_reader.feed_eof()
+            self.remote_reader = None
 
 
 class TcpProxy:
@@ -59,3 +63,4 @@ class TcpProxy:
             self.__proxy.close()
             self.__proxy = None
             await self.__upstream.close()
+            self.__upstream = None

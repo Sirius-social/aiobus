@@ -4,3 +4,7 @@ class ListenError(Exception):
 
 class SubscriberError(Exception):
     pass
+
+
+class PublisherError(Exception):
+    pass

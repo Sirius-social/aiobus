@@ -1,7 +1,7 @@
 import json
 import asyncio
 import threading
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 
@@ -10,7 +10,7 @@ import aioredis
 from .base import AbstractBus, AbstractListener
 from .ring import HashRing
 from .aiocontext import get as context_get, set as context_set
-from .errors import ListenError, SubscriberError
+from .errors import ListenError, SubscriberError, PublisherError
 
 
 class RedisBus(AbstractBus):
@@ -28,7 +28,9 @@ class RedisBus(AbstractBus):
         async def get_one(self, timeout: float = None) -> Any:
             if self.__cached:
                 return self.__cached.pop()
-            read_routines = [self.__reader(pub) for pub in self.__subscribers.values()]
+            read_routines = [
+                self.__reader(pub) for pub in self.__subscribers.values()
+            ]
             if len(read_routines) == 0:
                 if self.__in_loop:
                     raise StopAsyncIteration
@@ -68,11 +70,17 @@ class RedisBus(AbstractBus):
 
     async def publish(self, topic: str, message: Dict) -> Optional[int]:
         url = self.__get_redis_url(topic)
-        async with self.connection(url) as conn:
-            redis: aioredis.Redis = conn
-            payload = json.dumps(message).encode()
-            counter = await redis.publish(topic, payload)
-            return counter
+        try:
+            async with self.connection_pool(url) as conn:
+                redis: aioredis.Redis = conn
+                payload = json.dumps(message).encode()
+                counter = await redis.publish(topic, payload)
+                return counter
+        except Exception as e:
+            if isinstance(e, aioredis.exceptions.RedisError):
+                raise PublisherError(*e.args)
+            else:
+                raise e
 
     async def subscribe(self, *topics: str):
         if len(topics) == 0:
