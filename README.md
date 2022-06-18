@@ -38,7 +38,7 @@ Simply **ASYNC** framework to integrate **DISTRIBUTED** message bus to your appl
 ```
 
 ## Demo
-1. Setup redis instances on localhost ```docker-compose up -d```
+1. Setup redis instances on localhost ```docker-compose up -d``` for demo purposes
 2. Run/Debug [Demo script](/demo.py) 
 
 ## Running tests
