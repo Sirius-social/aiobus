@@ -115,13 +115,14 @@ class RedisBus(AbstractBus):
         return listener
 
     @asynccontextmanager
-    async def connection(self, url: str):
+    async def connection(self, url: str, close_on_exit: bool = True):
         redis = aioredis.Redis.from_url(url=url, max_connections=1)
         try:
             yield redis
         finally:
-            # release conn to pool
-            await redis.close()
+            if close_on_exit:
+                # release conn to pool
+                await redis.close()
 
     @asynccontextmanager
     async def connection_pool(self, url: str):
@@ -160,7 +161,7 @@ class RedisBus(AbstractBus):
                 del subscribers[topic]
                 await pub.close()
         url = self.__get_redis_url(topic)
-        async with self.connection(url) as conn:
+        async with self.connection(url, close_on_exit=False) as conn:
             redis: aioredis.Redis = conn
             pub = redis.pubsub()
             await pub.subscribe(topic)
