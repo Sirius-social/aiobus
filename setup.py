@@ -10,7 +10,7 @@ with open(os.path.join(HERE, "README.md")) as fid:
 
 setup(
     name="aiobus",
-    version="1.0.3",
+    version="1.0.4",
     description="An event-bus application layer, supports redis",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -29,7 +29,7 @@ setup(
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
     ],
-    packages=[],
+    packages=find_packages(),
     python_requires='>=3.5',
     include_package_data=True,
     install_requires=[
