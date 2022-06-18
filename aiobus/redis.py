@@ -134,7 +134,7 @@ class RedisBus(AbstractBus):
             self.__thread_local.pools = pools
         key = f'{cur_loop_id}:{url}'
         pool = pools.get(key, aioredis.ConnectionPool.from_url(url, max_connections=self.__max_pool_size))
-        self.__thread_local.pools[url] = pool
+        self.__thread_local.pools[key] = pool
         redis = aioredis.Redis(connection_pool=pool)
         try:
             yield redis
