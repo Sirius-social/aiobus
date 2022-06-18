@@ -29,7 +29,7 @@ setup(
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
     ],
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
     python_requires='>=3.5',
     include_package_data=True,
     install_requires=[
